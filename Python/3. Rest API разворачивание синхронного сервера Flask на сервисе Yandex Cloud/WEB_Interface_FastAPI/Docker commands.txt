@@ -1,0 +1,139 @@
+Создание образа:
+
+1. В командной строке перейдите в директорию, где находится ваш Dockerfile, и выполните команду для создания Docker образа. Замените <имя_образа> на имя, которое вы хотите дать вашему образу:
+
+docker build -t <имя_образа> class_karate_stance .
+
+
+2. Запуск контейнера:
+
+После создания образа вы можете запустить контейнер на его основе с помощью команды docker run. Например:
+
+docker run -d --name class-karate-stance-container class_karate_stance
+
+3. Войдите в контейнер:
+Выполните следующую команду, чтобы войти в контейнер:
+
+docker exec -it class-karate-stance-container /bin/bash
+
+4. Перейдите в директорию с вашим скриптом Python:
+После входа в контейнер вы можете переместиться в нужную директорию, где находится ваш скрипт Python:''
+
+cd 
+
+5. Запуск python
+python app.py
+
+docker run -it --name firefox-container -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix class_karate_stance
+
+
+На Yandex Cloud создаем:
+аккаунт
+платежный аккаунт
+папку
+регистр контейнеров
+реестр
+deploy контейнера на Yandex Cloud
+Войдем в реестр
+Чтобы загрузить образ, необходимо аутентифицироваться в реестре.
+
+docker image list
+
+Скачиваем сервис подключения к Yandex Cloud
+iex (New-Object System.Net.WebClient).DownloadString('https://storage.yandexcloud.net/yandexcloud-yc/install.ps1')
+
+PS C:\Users\Zver> yc init
+Welcome! This command will take you through the configuration process.
+Please go to https://oauth.yandex.ru/authorize?response_type=token&client_id=1a6990aa636648e9b2ef855fa7bec2fb in order to obtain OAuth token.
+
+Please enter OAuth token: y0_AgAAAAAIb54DAATuwQAAAAD6qYqvAAAKtUKPjIVA1Je0OWjfEOc8a7Y7Rw
+You have one cloud available: 'cloud-nick-yudin2013' (id = b1gb905ai37t9g68k25k). It is going to be used by default.
+Please choose folder to use:
+ [1] default (id = b1g3qkdjme2ojl4l69vk)
+ [2] diplom (id = b1gnt9fhtdpm37refcu6)
+ [3] Create a new folder
+Please enter your numeric choice: 2
+Your current folder has been set to 'diplom' (id = b1gnt9fhtdpm37refcu6).
+Do you want to configure a default Compute zone? [Y/n] Y
+Which zone do you want to use as a profile default?
+ [1] ru-central1-a
+ [2] ru-central1-b
+ [3] ru-central1-c
+ [4] ru-central1-d
+ [5] Don't set default zone
+Please enter your numeric choice: 1
+Your profile default Compute zone has been set to 'ru-central1-a'.
+
+Инструкция описывает, как загрузить локальный Docker-образ в реестр.
+
+Примечание
+
+Чтобы загрузить образ, необходимо аутентифицироваться в реестре.
+
+Посмотрите список доступных для загрузки Docker-образов:
+
+docker image list
+Результат:
+
+REPOSITORY                                  TAG     IMAGE ID      CREATED       SIZE
+cr.yandex/crpd50616s9a********/ubuntu       hello   50ff********  23 hours ago  86.7MB
+ubuntu                                      latest  1d9c********  2 weeks ago   86.7MB
+(Опционально) Присвойте Docker-образу URL вида cr.yandex/<идентификатор_реестра>/<имя_Docker-образа>:<тег>:
+
+docker tag ubuntu \
+cr.yandex/crpd50616s9a********/ubuntu:hello
+Примечание
+
+Загрузить в Container Registry можно только Docker-образы с URL вида cr.yandex/<идентификатор_реестра>/<имя_Docker-образа>:<тег>.
+
+Загрузите необходимый Docker-образ в реестр:
+
+docker push cr.yandex/crpd50616s9a********/ubuntu:hello
+
+Аутентифицируйтесь в Container Registry с помощью Docker Credential helper:
+
+Сконфигурируйте Docker для использования docker-credential-yc:
+
+yc container registry configure-docker
+Результат:
+
+Credential helper is configured in '/home/<user>/.docker/config.json'
+При конфигурации сохраняется информация о текущем профиле пользователя.
+
+Проверьте, что Docker сконфигурирован.
+
+В конфигурационном файле /home/<user>/.docker/config.json должна появиться строка:
+
+"cr.yandex": "yc"
+Скачайте Docker-образ из репозитория Docker Hub
+:
+
+docker pull ubuntu
+Присвойте скачанному Docker-образу тег вида cr.yandex/<идентификатор_реестра>/<имя_Docker-образа>:<тег>:
+
+docker tag ubuntu \
+cr.yandex/crpc9qeoft23********/ubuntu:hello
+Загрузите Docker-образ в репозиторий Container Registry:
+
+docker push \
+cr.yandex/crpc9qeoft23********/ubuntu:hello
+Запустите Docker-образ:
+
+docker run \
+cr.yandex/crpc9qeoft23********/ubuntu:hello
+
+=======================================================
+переименовываем docker image для отсылки на yandex
+
+PS C:\Users\Zver> docker tag class_karate_stance cr.yandex/crpuelsa1v38fr1406ml/class_karate_stance:test_run
+
+Просматриваем, что получилось
+
+PS C:\Users\Zver> docker image list
+REPOSITORY                                           TAG        IMAGE ID       CREATED       SIZE
+cr.yandex/crpuelsa1v38fr1406ml/class_karate_stance   test_run   d82874d4a2f6   2 hours ago   2.16GB
+class_karate_stance                                  latest     d82874d4a2f6   2 hours ago   2.16GB
+
+Отправляем по нужному пути
+
+PS C:\Users\Zver> docker push cr.yandex/crpuelsa1v38fr1406ml/class_karate_stance:test_run

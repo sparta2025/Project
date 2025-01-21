@@ -1,0 +1,15 @@
+body {
+    font-family: Arial, sans-serif;
+    padding: 20px;
+    max-width: 800px;
+    margin: auto;
+}
+
+form {
+    margin-bottom: 20px;
+}
+
+audio {
+    margin-top: 20px;
+}
+

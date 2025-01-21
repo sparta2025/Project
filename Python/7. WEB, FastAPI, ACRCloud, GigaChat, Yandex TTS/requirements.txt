@@ -1,0 +1,12 @@
+fastapi
+pydub
+tempfile
+base64
+hashlib
+hmac
+os
+time
+requests
+json
+shutil
+uuid

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Service</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            background-color: #f9f9f9;
+        }
+
+        form, div {
+            margin: 20px 0;
+        }
+
+        h1, h2 {
+            color: #333;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        audio {
+            margin-top: 10px;
+        }
+
+        #uploadResult {
+            font-size: 16px;
+            color: #555;
+        }
+		
+		#progressContainer {
+			width: 80%;
+			height: 30px;
+			background-color: #e0e0e0;
+			border: 1px solid #ccc;
+			border-radius: 10px;
+			margin: 20px auto;
+			position: relative;
+			overflow: hidden;
+		}
+
+		#progressBar {
+			width: 0;
+			margin-top: 0px;  /* Регулируем сдвиг текста */
+			height: 100%; /* Заполнение всей высоты контейнера */
+			background-color: #007BFF;
+			transition: width 0.5s ease;
+			display: flex;
+			align-items: center;  /* Центрируем текст по вертикали */
+			justify-content: center; /* Центрируем текст по горизонтали */
+			position: absolute;  /* Это гарантирует, что прогресс-бар не выйдет за пределы контейнера */
+		}
+
+		#progressText {
+			position: absolute; /* Текст будет поверх прогресс-бара */
+			color: white;
+			font-weight: bold;
+			font-size: 16px;
+			z-index: 1; /* Убедимся, что текст будет виден */
+		}	
+    </style>
+</head>
+<body>
+    <h1>Аудиосервис</h1>
+
+    <form id="uploadForm">
+        <input type="file" id="audioFile" name="file" accept="audio/*">
+        <button type="submit">Загрузить</button>
+    </form>
+    <div id="uploadResult"></div>
+
+    <form id="processForm" hidden>
+        <button type="submit">Обработать</button>
+    </form>
+	
+	<div id="progressContainer" class="progress-container" hidden>
+		<div id="progressBar" class="progress-bar">
+			<span id="progressText">0%</span>
+		</div>
+	</div>
+
+    <div id="playerSection" hidden>
+        <h2>Начальный файл</h2>
+        <audio id="initialAudioPlayer" controls hidden></audio>
+        <button id="initialDownloadButton">Скачать начальный файл</button>
+
+        <h2>Итоговый файл</h2>
+        <audio id="processedAudioPlayer" controls hidden></audio>
+        <button id="processedDownloadButton">Скачать итоговый файл</button>
+    </div>
+
+    <script>	
+			document.addEventListener('DOMContentLoaded', () => {
+			    const progressContainer = document.getElementById('progressContainer');
+				const progressBar = document.getElementById('progressBar');
+				const progressText = document.getElementById('progressText');
+				
+				const uploadForm = document.getElementById('uploadForm');
+				const processForm = document.getElementById('processForm');
+				const uploadResult = document.getElementById('uploadResult');
+				const playerSection = document.getElementById('playerSection');
+				const initialAudioPlayer = document.getElementById('initialAudioPlayer');
+				const processedAudioPlayer = document.getElementById('processedAudioPlayer');
+				const initialDownloadButton = document.getElementById('initialDownloadButton');
+				const processedDownloadButton = document.getElementById('processedDownloadButton');
+
+				let uploadedPlayUrl = '';
+				let uploadedDownloadUrl = '';
+				let processedFileUrl = '';
+				
+				const ws = new WebSocket(`ws://${window.location.host}/ws/progress`);
+				
+				ws.onmessage = (event) => {
+					const message = event.data;
+					progressText.textContent = message;
+
+					// Прогресс-бар (увеличивается пропорционально этапам)
+					if (message.includes("Анализ")) progressBar.style.width = "16%";
+					else if (message.includes("Обработка")) progressBar.style.width = "32%";
+					else if (message.includes("Получение токена")) progressBar.style.width = "48%";
+					else if (message.includes("Получение истории")) progressBar.style.width = "64%";
+					else if (message.includes("IAM токена")) progressBar.style.width = "80%";
+					else if (message.includes("Синтез речи")) progressBar.style.width = "100%";
+					else if (message.includes("Завершено")) {
+						setTimeout(() => {
+							progressContainer.hidden = true;
+						}, 500); // Скроем через полсекунды
+					}
+				};
+
+				processForm.addEventListener('submit', async (e) => {
+					e.preventDefault();
+					progressContainer.hidden = false;
+					progressBar.style.width = '0%';
+					progressText.textContent = "Начинаем обработку...";
+					await fetch('/process_audio/', { method: 'POST', body: new FormData(processForm) });
+				});
+
+				// Обработчик загрузки файла
+				uploadForm.addEventListener('submit', async (e) => {
+					e.preventDefault();
+					const formData = new FormData(uploadForm);
+
+					try {
+						const response = await fetch('/upload/', { method: 'POST', body: formData });
+						const data = await response.json();
+
+						uploadedPlayUrl = data.play_url;
+						uploadedDownloadUrl = `/download/?file_path=${data.file_path}`;
+
+						if (uploadedPlayUrl) {
+							uploadResult.textContent = "Файл загружен!";
+							initialAudioPlayer.src = uploadedPlayUrl;
+							initialAudioPlayer.hidden = false;
+							initialDownloadButton.onclick = () => {
+								window.location.href = uploadedDownloadUrl;
+							};
+
+							processForm.hidden = false;
+						} else {
+							throw new Error("Не удалось загрузить файл.");
+						}
+					} catch (error) {
+						console.error("Ошибка загрузки файла:", error);
+						uploadResult.textContent = `Ошибка загрузки: ${error.message}`;
+					}
+				});
+
+				// Обработчик обработки файла
+				processForm.addEventListener('submit', async (e) => {
+					e.preventDefault();
+					const formData = new FormData(processForm);
+					formData.append('file', document.getElementById('audioFile').files[0]);
+
+					try {
+						const response = await fetch('/process_audio/', { method: 'POST', body: formData });
+
+						if (!response.ok) {
+							throw new Error(`Ошибка сервера: ${response.statusText}`);
+						}
+
+						const data = await response.json();
+
+						if (data.full_text) {
+							uploadResult.textContent = `Результат: ${data.full_text}`;
+						} else {
+							uploadResult.textContent = 'Обработка завершена, но результат пуст.';
+						}
+
+						// Настройка итогового файла
+						if (data.output_file) {
+							const filename = data.output_file.split('/').pop(); // Получаем только имя файла
+							processedFileUrl = `/play_output/${filename}`; // Путь для проигрывания
+							processedAudioPlayer.src = processedFileUrl;
+							processedAudioPlayer.hidden = false;
+
+							processedDownloadButton.onclick = () => {
+								const downloadUrl = `/download/?file_path=${encodeURIComponent('output/' + data.output_file)}`;
+								window.location.href = downloadUrl; // Загружаем файл при клике
+							};
+
+							playerSection.hidden = false;
+						} else {
+							console.error("Итоговый файл не найден");
+							uploadResult.textContent = "Ошибка: итоговый файл не найден.";
+						}
+					} catch (error) {
+						console.error('Ошибка обработки:', error);
+						uploadResult.textContent = `Ошибка обработки: ${error.message}`;
+					}
+				});
+			});
+    </script>
+</body>
+</html>
